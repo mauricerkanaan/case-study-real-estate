@@ -7,6 +7,9 @@ from datetime import datetime
 import pandas as pd
 from airflow.decorators import dag, task
 
+import logging
+log = logging.getLogger("airflow.task")
+
 DB_DIR = os.environ.get("AIRFLOW_DB_DIR", "/opt/airflow/db")
 DB_PATH = os.environ.get("SQLITE_DB_PATH", os.path.join(DB_DIR, "case-study.db"))
 
@@ -35,6 +38,8 @@ def sqlite_etl_3_tasks():
         Reads rows from SRC_TABLE and writes to a parquet file in /opt/airflow/data.
         Returns the extracted file path (small string -> OK for XCom).
         """
+        log.info("-------> extract_to_file")
+
         os.makedirs(DB_DIR, exist_ok=True)
         extract_path = os.path.join(DB_DIR, "extract.parquet")
 
@@ -56,6 +61,8 @@ def sqlite_etl_3_tasks():
         Writes transformed dataset to a new file.
         Returns the transformed file path.
         """
+        log.info("-------> transform_python")
+
         transformed_path = os.path.join(DB_DIR, "transformed.parquet")
 
         df = pd.read_parquet(extract_path)
@@ -82,6 +89,8 @@ def sqlite_etl_3_tasks():
         Loads transformed dataset into DST_TABLE in SQLite.
         Uses pandas to_sql for convenience.
         """
+        log.info("-------> load_to_sqlite")
+
         df = pd.read_parquet(transformed_path)
 
         with sqlite3.connect(DB_PATH) as conn:
