@@ -1,0 +1,95 @@
+---- Generated CREATE TABLE SQL ----
+CREATE TABLE IF NOT EXISTS "data_source_LEADS" (
+  "id" INTEGER,
+  "date_of_last_request" TEXT,
+  "buyer" INTEGER,
+  "seller" INTEGER,
+  "best_time_to_call" TEXT,
+  "budget" REAL,
+  "created_at" TEXT,
+  "updated_at" TEXT,
+  "user_id" REAL,
+  "location" TEXT,
+  "date_of_last_contact" TEXT,
+  "status_name" TEXT,
+  "commercial" INTEGER,
+  "merged" REAL,
+  "area_id" REAL,
+  "compound_id" REAL,
+  "developer_id" REAL,
+  "meeting_flag" REAL,
+  "do_not_call" INTEGER,
+  "lead_type_id" INTEGER,
+  "customer_id" INTEGER,
+  "method_of_contact" TEXT,
+  "lead_source" TEXT,
+  "campaign" TEXT,
+  "lead_type" TEXT
+);
+
+CREATE TABLE IF NOT EXISTS "dwh_LEADS" (
+  "id" INTEGER NOT NULL PRIMARY KEY,
+  "date_of_last_request" TEXT NOT NULL,
+  "buyer" INTEGER NOT NULL,
+  "seller" INTEGER NOT NULL,
+  "best_time_to_call" TEXT,
+  "budget" REAL,
+  "created_at" TEXT NOT NULL,
+  "updated_at" TEXT NOT NULL,
+  "user_id" REAL,
+  "location" TEXT,
+  "date_of_last_contact" TEXT,
+  "status_name" TEXT NOT NULL,
+  "commercial" INTEGER NOT NULL,
+  "merged" REAL,
+  "area_id" REAL,
+  "compound_id" REAL,
+  "developer_id" TEXT,
+  "meeting_flag" REAL,
+  "do_not_call" INTEGER NOT NULL,
+  "lead_type_id" INTEGER NOT NULL,
+  "customer_id" INTEGER NOT NULL,
+  "method_of_contact" TEXT NOT NULL,
+  "lead_source" TEXT NOT NULL,
+  "campaign" TEXT,
+  "lead_type" TEXT NOT NULL
+);
+
+
+---- Generated CREATE TABLE SQL ----
+CREATE TABLE IF NOT EXISTS "data_source_SALES" (
+  "id" INTEGER,
+  "lead_id" INTEGER,
+  "unit_value" REAL,
+  "unit_location" TEXT,
+  "expected_value" REAL,
+  "actual_value" REAL,
+  "date_of_reservation" TEXT,
+  "reservation_update_date" TEXT,
+  "date_of_contraction" TEXT,
+  "property_type_id" INTEGER,
+  "area_id" REAL,
+  "compound_id" REAL,
+  "sale_category" TEXT,
+  "years_of_payment" REAL,
+  "property_type" TEXT
+);
+
+CREATE TABLE IF NOT EXISTS "dwh_SALES" (
+  "id" INTEGER NOT NULL PRIMARY KEY,
+  "lead_id" INTEGER NOT NULL,
+  "unit_value" REAL,
+  "unit_location" TEXT,
+  "expected_value" REAL,
+  "actual_value" REAL,
+  "date_of_reservation" TEXT,
+  "reservation_update_date" TEXT,
+  "date_of_contraction" TEXT,
+  "property_type_id" INTEGER NOT NULL,
+  "area_id" REAL,
+  "compound_id" REAL,
+  "sale_category" TEXT,
+  "years_of_payment" REAL,
+  "property_type" TEXT NOT NULL
+);
+
