@@ -7,7 +7,7 @@ from datetime import datetime
 import pandas as pd
 from airflow.decorators import dag, task
 
-from common.common_normalization import * 
+from case_study_real_estate_dags.common.common_functions import * 
 
 import logging
 log = logging.getLogger("airflow.task")
@@ -75,6 +75,10 @@ def sqlite_etl_3_tasks():
 
         # Remove exact duplicated rows 
         df = remove_exact_duplicate_rows(df)
+
+        # Normalize dates
+        df["date_of_last_request"] = fix_dates(df["date_of_last_request"])
+
 
         # ---- Example transformations (edit to your needs) ----
         # 1) Standardize column names
