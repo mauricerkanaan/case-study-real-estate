@@ -213,9 +213,29 @@ ARABIC_RE = re.compile(r"[\u0600-\u06FF]")
 CONTROL_CHARS_RE = re.compile(r"[\x00-\x1F\x7F-\x9F]")
 REPLACEMENT_CHAR = "\uFFFD"  # '�'
 
+# Matches common textual representations of control chars
+TEXTUAL_CONTROL_RE = re.compile(
+    r"(?:"
+    r"X(?P<x4>[0-9A-Fa-f]{4})"          # X0081
+    r"|U\+(?P<uplus>[0-9A-Fa-f]{4})"    # U+0081
+    r"|\\u(?P<uslash>[0-9A-Fa-f]{4})"   # \u0081
+    r"|\\x(?P<x2>[0-9A-Fa-f]{2})"       # \x81
+    r"|&#x(?P<html>[0-9A-Fa-f]{2,4});"  # &#x81; or &#x0081;
+    r")"
+)
+
+def _strip_textual_controls(s: str) -> str:
+    def repl(m: re.Match) -> str:
+        hex_str = next(v for v in m.groupdict().values() if v is not None)
+        codepoint = int(hex_str, 16)
+
+        # remove only if it's a control char (C0 + DEL + C1)
+        if codepoint <= 0x1F or codepoint == 0x7F or (0x80 <= codepoint <= 0x9F):
+            return ""
+        return m.group(0)  # keep if it's not actually a control char
+    return TEXTUAL_CONTROL_RE.sub(repl, s)
 
 def fix_mojibake(s: str) -> str:
-    # Try the common fix first
     try:
         cand = s.encode("cp1252").decode("utf-8")
         if ARABIC_RE.search(cand):
@@ -223,7 +243,6 @@ def fix_mojibake(s: str) -> str:
     except Exception:
         pass
 
-    # Extra repair for cases like your samples (ø/ù used instead of Ø/Ù)
     try:
         b = bytearray(s.encode("cp1252", errors="ignore"))
         for i, x in enumerate(b):
@@ -232,7 +251,6 @@ def fix_mojibake(s: str) -> str:
             elif x == 0xF9:  # ù
                 b[i] = 0xD9
 
-        # Optional small tweak seen in your text (ي)
         for i in range(len(b) - 1):
             if b[i] == 0xD9 and b[i + 1] == 0x9A:
                 b[i + 1] = 0x8A
@@ -251,11 +269,13 @@ def fix_value(s: str | None) -> str | None:
 
     out = s
 
+    # 0) Remove textual placeholders like X0081 / \x81 / \u0081 / U+0081 / &#x81;
+    out = _strip_textual_controls(out)
+
     # 1) URL-encoded (e.g., %D8%...)
     if "%" in out and re.search(r"%[0-9A-Fa-f]{2}", out):
         try:
             decoded = urllib.parse.unquote(out)
-            # accept if it actually turned into Arabic (or just accept always if you prefer)
             if ARABIC_RE.search(decoded):
                 out = decoded
         except Exception:
@@ -265,26 +285,16 @@ def fix_value(s: str | None) -> str | None:
     if any(ch in out for ch in ("Ø", "Ù", "Ã", "Â")):
         out = fix_mojibake(out)
 
-    # 3) Remove control chars like U+0081 (shown as \x81 / X0081 in some systems)
+    # 3) Remove actual control chars (including U+0081 if present as the real char)
     out = CONTROL_CHARS_RE.sub("", out)
 
     # 4) Optional: remove the replacement char '�'
-    # Note: '�' means data was already lost; removing it just cleans display.
     out = out.replace(REPLACEMENT_CHAR, "")
 
     # 5) Optional: trim extra spaces created by removals
     out = re.sub(r"\s+", " ", out).strip()
 
     return out
-
-
-
-
-
-
-
-
-
 
 
 
