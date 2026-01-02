@@ -74,23 +74,36 @@ def sqlite_etl_3_tasks():
         df = pd.read_parquet(extract_path)
 
         # Remove exact duplicated rows 
+        log.info("-------> Remove exact duplicate rows")
         df = remove_exact_duplicate_rows(df)
 
+        # Normalize all string columns 
+        str_cols = df.select_dtypes(include=["object", "string"]).columns
+        
+        log.info("-------> Normalize all string columns")
+        df[str_cols] = df[str_cols].apply(normalize_str)
+        
+        log.info("-------> Decode arabic")
+        # df[str_cols] = df[str_cols].apply(decode_str)
+        for str_col in str_cols: 
+            df[str_col] = df[str_col].map(lambda x: fix_value(None if pd.isna(x) else x))
+
+
         # Normalize dates
+        log.info("-------> Normalize dates")
         df["date_of_last_request"] = fix_dates(df["date_of_last_request"])
+        df["created_at"] = fix_dates(df["created_at"])
+        df["updated_at"] = fix_dates(df["updated_at"])
+        df["date_of_last_contact"] = fix_dates(df["date_of_last_contact"])
 
+        # Fix booleans 
+        log.info("-------> Normalize booleans")
+        df["buyer"] = fix_bools(df["buyer"])
+        df["seller"] = fix_bools(df["seller"])
+        df["commercial"] = fix_bools(df["commercial"])
+        df["merged"] = fix_bools(df["merged"])
+        df["do_not_call"] = fix_bools(df["do_not_call"])
 
-        # ---- Example transformations (edit to your needs) ----
-        # 1) Standardize column names
-        # df.columns = [c.strip().lower() for c in df.columns]
-
-        # # 2) Add a derived column if columns exist
-        # if "amount" in df.columns:
-        #     df["amount_usd"] = df["amount"].astype(float) * 1.0
-
-        # # 3) Drop duplicates if an id exists
-        # if "id" in df.columns:
-        #     df = df.drop_duplicates(subset=["id"])
         # -----------------------------------------------------
 
         df.to_parquet(transformed_path, index=False)

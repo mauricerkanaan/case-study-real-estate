@@ -8,6 +8,7 @@ conda create -n redp python=3.12.12
 * ~~Create schema and import data~~ 
 * ~~Airflow: SqlLite -> SqlLite (just remove the PK, and Not null from dwh for test)~~
 * ~~Local LLM~~
+* I should review the encoding of location
 * Benchmar DE in Local LLM 
 * DAG: 
     * Extract 
