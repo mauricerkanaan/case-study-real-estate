@@ -1,6 +1,7 @@
 import re
 import pandas as pd 
 import urllib.parse
+from typing import Any
 
 import logging
 log = logging.getLogger("airflow.task")
@@ -177,124 +178,129 @@ def normalize_str(s: pd.Series) -> pd.Series:
 
     return s
 
-def decode_str(encoded: pd.Series) -> pd.Series:
+def decode_str(values: pd.Series) -> pd.Series:
     """
-    Handle both URL-encoded and corrupted Arabic text for a pandas Series.
-
-    - URL-decodes each non-null value
-    - Fixes common mojibake/corruption patterns when detected
-    - Preserves index and name
+    Vectorized entrypoint: takes a pd.Series and returns a pd.Series.
+    Behavior for string/None matches the original fix_value; missing values are preserved.
     """
-    out: list[object] = []
 
-    for val in encoded.to_list():
-        if pd.isna(val):
-            out.append(pd.NA)
-            continue
+    ARABIC_RE = re.compile(r"[\u0600-\u06FF]")
+    CONTROL_CHARS_RE = re.compile(r"[\x00-\x1F\x7F-\x9F]")
+    REPLACEMENT_CHAR = "\uFFFD"  # '�'
 
-        text = str(val)
-        result = urllib.parse.unquote(text)
+    # Matches common textual representations of control chars
+    TEXTUAL_CONTROL_RE = re.compile(
+        r"(?:"  # non-capturing group
+        r"X(?P<x4>[0-9A-Fa-f]{4})"          # X0081
+        r"|U\+(?P<uplus>[0-9A-Fa-f]{4})"    # U+0081
+        r"|\\u(?P<uslash>[0-9A-Fa-f]{4})"   # \u0081
+        r"|\\x(?P<x2>[0-9A-Fa-f]{2})"       # \x81
+        r"|&#x(?P<html>[0-9A-Fa-f]{2,4});"  # &#x81; or &#x0081;
+        r")"
+    )
 
-        if ("Ù" in result) or ("Ø" in result) or ("ø" in result):
-            try:
-                raw_bytes = result.encode("windows-1252")
-                fixed_bytes = raw_bytes.replace(b"\xf8", b"\xd8")
-                result = fixed_bytes.decode("utf-8")
-            except Exception:
-                result = result.replace("ø¬", "ج")
-                result = result.replace("التø", "الت")
+    URL_HEX_RE = re.compile(r"%[0-9A-Fa-f]{2}")
+    MOJIBAKE_MARKERS = ("Ø", "Ù", "Ã", "Â")
 
-        out.append(result)
+    def strip_textual_controls(text: str) -> str:
+        def repl(m: re.Match) -> str:
+            gd = m.groupdict()
+            hex_str = (
+                gd.get("x4") or gd.get("uplus") or gd.get("uslash") or gd.get("x2") or gd.get("html")
+            )
+            # hex_str will always exist due to the regex
+            codepoint = int(hex_str, 16)
 
-    return pd.Series(out, index=encoded.index, name=encoded.name)
+            # remove only if it's a control char (C0 + DEL + C1)
+            if codepoint <= 0x1F or codepoint == 0x7F or (0x80 <= codepoint <= 0x9F):
+                return ""
+            return m.group(0)
 
+        return TEXTUAL_CONTROL_RE.sub(repl, text)
 
-ARABIC_RE = re.compile(r"[\u0600-\u06FF]")
-CONTROL_CHARS_RE = re.compile(r"[\x00-\x1F\x7F-\x9F]")
-REPLACEMENT_CHAR = "\uFFFD"  # '�'
-
-# Matches common textual representations of control chars
-TEXTUAL_CONTROL_RE = re.compile(
-    r"(?:"
-    r"X(?P<x4>[0-9A-Fa-f]{4})"          # X0081
-    r"|U\+(?P<uplus>[0-9A-Fa-f]{4})"    # U+0081
-    r"|\\u(?P<uslash>[0-9A-Fa-f]{4})"   # \u0081
-    r"|\\x(?P<x2>[0-9A-Fa-f]{2})"       # \x81
-    r"|&#x(?P<html>[0-9A-Fa-f]{2,4});"  # &#x81; or &#x0081;
-    r")"
-)
-
-def _strip_textual_controls(s: str) -> str:
-    def repl(m: re.Match) -> str:
-        hex_str = next(v for v in m.groupdict().values() if v is not None)
-        codepoint = int(hex_str, 16)
-
-        # remove only if it's a control char (C0 + DEL + C1)
-        if codepoint <= 0x1F or codepoint == 0x7F or (0x80 <= codepoint <= 0x9F):
-            return ""
-        return m.group(0)  # keep if it's not actually a control char
-    return TEXTUAL_CONTROL_RE.sub(repl, s)
-
-def fix_mojibake(s: str) -> str:
-    try:
-        cand = s.encode("cp1252").decode("utf-8")
-        if ARABIC_RE.search(cand):
-            return cand
-    except Exception:
-        pass
-
-    try:
-        b = bytearray(s.encode("cp1252", errors="ignore"))
-        for i, x in enumerate(b):
-            if x == 0xF8:  # ø
-                b[i] = 0xD8
-            elif x == 0xF9:  # ù
-                b[i] = 0xD9
-
-        for i in range(len(b) - 1):
-            if b[i] == 0xD9 and b[i + 1] == 0x9A:
-                b[i + 1] = 0x8A
-
-        cand = b.decode("utf-8", errors="replace")
-        if ARABIC_RE.search(cand):
-            return cand
-    except Exception:
-        pass
-
-    return s
-
-def fix_value(s: str | None) -> str | None:
-    if s is None:
-        return None
-
-    out = s
-
-    # 0) Remove textual placeholders like X0081 / \x81 / \u0081 / U+0081 / &#x81;
-    out = _strip_textual_controls(out)
-
-    # 1) URL-encoded (e.g., %D8%...)
-    if "%" in out and re.search(r"%[0-9A-Fa-f]{2}", out):
+    def fix_mojibake(text: str) -> str:
+        # Attempt 1: cp1252 bytes interpreted as utf-8
         try:
-            decoded = urllib.parse.unquote(out)
-            if ARABIC_RE.search(decoded):
-                out = decoded
+            cand = text.encode("cp1252").decode("utf-8")
+            if ARABIC_RE.search(cand):
+                return cand
         except Exception:
             pass
 
-    # 2) Mojibake (Ø Ù etc)
-    if any(ch in out for ch in ("Ø", "Ù", "Ã", "Â")):
-        out = fix_mojibake(out)
+        # Attempt 2: patch common bad bytes then decode as utf-8
+        try:
+            b = bytearray(text.encode("cp1252", errors="ignore"))
 
-    # 3) Remove actual control chars (including U+0081 if present as the real char)
-    out = CONTROL_CHARS_RE.sub("", out)
+            for i, x in enumerate(b):
+                if x == 0xF8:      # ø
+                    b[i] = 0xD8
+                elif x == 0xF9:    # ù
+                    b[i] = 0xD9
 
-    # 4) Optional: remove the replacement char '�'
-    out = out.replace(REPLACEMENT_CHAR, "")
+            for i in range(len(b) - 1):
+                if b[i] == 0xD9 and b[i + 1] == 0x9A:
+                    b[i + 1] = 0x8A
 
-    # 5) Optional: trim extra spaces created by removals
-    out = re.sub(r"\s+", " ", out).strip()
+            cand = b.decode("utf-8", errors="replace")
+            if ARABIC_RE.search(cand):
+                return cand
+        except Exception:
+            pass
 
-    return out
+        return text
+
+    def fix_value_scalar(value: Any) -> Any:
+        if value is None:
+            return None
+
+        # Preserve pandas missing values (e.g., NaN / pd.NA) as-is
+        if pd.isna(value):
+            return value
+
+        # Old code assumed strings; keep non-strings untouched to avoid surprises
+        if not isinstance(value, str):
+            return value
+
+        out = value
+
+        # 0) Remove textual placeholders like X0081 / \x81 / \u0081 / U+0081 / &#x81;
+        out = strip_textual_controls(out)
+
+        # 1) URL-encoded (e.g., %D8%...)
+        if "%" in out and URL_HEX_RE.search(out):
+            try:
+                decoded = urllib.parse.unquote(out)
+                if ARABIC_RE.search(decoded):
+                    out = decoded
+            except Exception:
+                pass
+
+        # 2) Mojibake (Ø Ù etc)
+        if any(ch in out for ch in MOJIBAKE_MARKERS):
+            out = fix_mojibake(out)
+
+        # 3) Remove actual control chars (including U+0081 if present as the real char)
+        out = CONTROL_CHARS_RE.sub("", out)
+
+        # 4) Optional: remove the replacement char '�'
+        out = out.replace(REPLACEMENT_CHAR, "")
+
+        # 5) Optional: trim extra spaces created by removals
+        out = re.sub(r"\s+", " ", out).strip()
+
+        return out
+
+    return values.map(fix_value_scalar)
+
+
+
+
+
+
+
+
+
+
 
 
 

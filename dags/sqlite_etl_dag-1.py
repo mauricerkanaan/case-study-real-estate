@@ -84,25 +84,18 @@ def sqlite_etl_3_tasks():
         df[str_cols] = df[str_cols].apply(normalize_str)
         
         log.info("-------> Decode arabic")
-        # df[str_cols] = df[str_cols].apply(decode_str)
-        for str_col in str_cols: 
-            df[str_col] = df[str_col].map(lambda x: fix_value(None if pd.isna(x) else x))
-
+        df[str_cols] = df[str_cols].apply(decode_str)
+        
 
         # Normalize dates
         log.info("-------> Normalize dates")
-        df["date_of_last_request"] = fix_dates(df["date_of_last_request"])
-        df["created_at"] = fix_dates(df["created_at"])
-        df["updated_at"] = fix_dates(df["updated_at"])
-        df["date_of_last_contact"] = fix_dates(df["date_of_last_contact"])
+        dates_cols = ["date_of_last_request", "created_at", "updated_at", "date_of_last_contact"]
+        df[dates_cols] = df[dates_cols].apply(fix_dates)
 
         # Fix booleans 
         log.info("-------> Normalize booleans")
-        df["buyer"] = fix_bools(df["buyer"])
-        df["seller"] = fix_bools(df["seller"])
-        df["commercial"] = fix_bools(df["commercial"])
-        df["merged"] = fix_bools(df["merged"])
-        df["do_not_call"] = fix_bools(df["do_not_call"])
+        bool_cols = ["buyer", "seller", "commercial", "merged", "do_not_call"]
+        df[bool_cols] = df[bool_cols].apply(fix_bools)
 
         # -----------------------------------------------------
 
