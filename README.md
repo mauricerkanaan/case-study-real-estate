@@ -9,13 +9,14 @@ conda create -n redp python=3.12.12
 * ~~Airflow: SqlLite -> SqlLite (just remove the PK, and Not null from dwh for test)~~
 * ~~Local LLM~~
 * ~~I should review the encoding of location~~
-* Use PythonOperator with parameter 
 * Introduce the pipeline for SALES
 * Benchmark DE in Local LLM 
 * CacheLLM: Correct the free text 
 * SCD2: 
     * Extract (not exact exist in dest)
     * Load (update date + insert)
+    * create index
+* Put Scheduler to Daily
 
 
 ``` python

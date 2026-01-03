@@ -3,7 +3,8 @@ from typing import List
 import os
 import sqlite3
 
-from case_study_real_estate_dags.common.common_transformation import * 
+from case_study_real_estate_dags.common.common_transformation import *
+from case_study_real_estate_dags.common.common_scd_2 import * 
 
 import logging
 log = logging.getLogger("airflow.task")
@@ -31,6 +32,26 @@ def extract_db_2_parquet(db_dir: str, db_path: str, src_table: str) -> str:
 
     return extract_path
 
+def exclude_common_data(src_path: str, dst_path: str) -> str: 
+    log.info(f"[ExcludeCommon] Excluding common data between {src_path} and {dst_path}")
+    df_src = pd.read_parquet(src_path)
+    df_dst = pd.read_parquet(dst_path)
+
+    df_src = df_src.replace({None: pd.NA})
+    df_dst = df_dst.replace({None: pd.NA})
+
+    not_in_dst = (
+        df_src
+            .merge(df_dst.drop_duplicates(), how="left", indicator=True)
+            .query('_merge == "left_only"')
+            .drop(columns="_merge")
+    )
+
+    not_in_dst.to_parquet(src_path, index=False)
+    
+    log.info(f"[ExcludeCommon] Source data shape {not_in_dst.shape}")
+    
+    return src_path
 
 def transform_data(db_dir: str, extract_path: str, src_table: str, dates_cols: List[str]=None, bool_cols: List[str]=None) -> str: 
     """
@@ -82,7 +103,6 @@ def transform_data(db_dir: str, extract_path: str, src_table: str, dates_cols: L
 
     return transformed_path  
 
-
 def load_parquet_2_db(db_path: str, transformed_path: str, dst_table: str) -> str:
     """
     Loads transformed dataset into DST_TABLE in SQLite.
@@ -103,3 +123,24 @@ def load_parquet_2_db(db_path: str, transformed_path: str, dst_table: str) -> st
         #     conn.execute(f"CREATE INDEX IF NOT EXISTS idx_{DST_TABLE}_id ON {DST_TABLE}(id);")
 
     return transformed_path
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

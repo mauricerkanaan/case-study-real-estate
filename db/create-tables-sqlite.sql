@@ -1,4 +1,4 @@
----- Generated CREATE TABLE SQL ----
+---- Create data source ----
 CREATE TABLE IF NOT EXISTS "data_source_LEADS" (
   "id" INTEGER,
   "date_of_last_request" TEXT,
@@ -27,8 +27,29 @@ CREATE TABLE IF NOT EXISTS "data_source_LEADS" (
   "lead_type" TEXT
 );
 
+CREATE TABLE IF NOT EXISTS "data_source_SALES" (
+  "id" INTEGER,
+  "lead_id" INTEGER,
+  "unit_value" REAL,
+  "unit_location" TEXT,
+  "expected_value" REAL,
+  "actual_value" REAL,
+  "date_of_reservation" TEXT,
+  "reservation_update_date" TEXT,
+  "date_of_contraction" TEXT,
+  "property_type_id" INTEGER,
+  "area_id" REAL,
+  "compound_id" REAL,
+  "sale_category" TEXT,
+  "years_of_payment" REAL,
+  "property_type" TEXT
+);
+
+---- Create dwh ----
+
 CREATE TABLE IF NOT EXISTS "dwh_LEADS" (
   "id" INTEGER NOT NULL PRIMARY KEY,
+  "src_id" INTEGER,
   "date_of_last_request" TEXT NOT NULL,
   "buyer" INTEGER NOT NULL,
   "seller" INTEGER NOT NULL,
@@ -52,31 +73,16 @@ CREATE TABLE IF NOT EXISTS "dwh_LEADS" (
   "method_of_contact" TEXT NOT NULL,
   "lead_source" TEXT NOT NULL,
   "campaign" TEXT,
-  "lead_type" TEXT NOT NULL
-);
-
-
----- Generated CREATE TABLE SQL ----
-CREATE TABLE IF NOT EXISTS "data_source_SALES" (
-  "id" INTEGER,
-  "lead_id" INTEGER,
-  "unit_value" REAL,
-  "unit_location" TEXT,
-  "expected_value" REAL,
-  "actual_value" REAL,
-  "date_of_reservation" TEXT,
-  "reservation_update_date" TEXT,
-  "date_of_contraction" TEXT,
-  "property_type_id" INTEGER,
-  "area_id" REAL,
-  "compound_id" REAL,
-  "sale_category" TEXT,
-  "years_of_payment" REAL,
-  "property_type" TEXT
+  "lead_type" TEXT NOT NULL,
+  "effective_start_date" TEXT NOT NULL,
+  "effective_end_date" TEXT,
+  "is_current" INTEGER NOT NULL,
+  "version_id" INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS "dwh_SALES" (
   "id" INTEGER NOT NULL PRIMARY KEY,
+  "src_id" INTEGER,
   "lead_id" INTEGER NOT NULL,
   "unit_value" REAL,
   "unit_location" TEXT,
@@ -90,6 +96,10 @@ CREATE TABLE IF NOT EXISTS "dwh_SALES" (
   "compound_id" REAL,
   "sale_category" TEXT,
   "years_of_payment" REAL,
-  "property_type" TEXT NOT NULL
+  "property_type" TEXT NOT NULL,
+  "effective_start_date" TEXT NOT NULL,
+  "effective_end_date" TEXT,
+  "is_current" INTEGER NOT NULL,
+  "version_id" INTEGER NOT NULL
 );
 
