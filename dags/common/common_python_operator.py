@@ -83,7 +83,7 @@ def transform_data(db_dir: str, extract_path: str, src_table: str, dates_cols: L
     return transformed_path  
 
 
-def load_parquet_2_db(db_path: str, transformed_path: str, dst_table: str) -> None:
+def load_parquet_2_db(db_path: str, transformed_path: str, dst_table: str) -> str:
     """
     Loads transformed dataset into DST_TABLE in SQLite.
     Uses pandas to_sql for convenience.
@@ -101,3 +101,5 @@ def load_parquet_2_db(db_path: str, transformed_path: str, dst_table: str) -> No
         # Optional: add indexes (example)
         # if "id" in df.columns:
         #     conn.execute(f"CREATE INDEX IF NOT EXISTS idx_{DST_TABLE}_id ON {DST_TABLE}(id);")
+
+    return transformed_path
