@@ -67,13 +67,13 @@ def transform_data(db_dir: str, extract_path: str, src_table: str, dates_cols: L
         
 
     # Normalize dates
-    if dates_cols is not None and not dates_cols.empty:
+    if dates_cols is not None and len(dates_cols) > 0:
         log.info(f"[TransformData] Normalize all dates in {src_table}")
         log.info(f"[TransformData] Dates columns:\n{dates_cols}")
         df[dates_cols] = df[dates_cols].apply(fix_dates)
 
     # Fix booleans 
-    if bool_cols is not None and not bool_cols.empty:
+    if bool_cols is not None and len(bool_cols) > 0:
         log.info(f"[TransformData] Normalize booleans in {src_table}")
         log.info(f"[TransformData] Boolean columns:\n{bool_cols}")
         df[bool_cols] = df[bool_cols].apply(fix_bools) 
@@ -83,7 +83,7 @@ def transform_data(db_dir: str, extract_path: str, src_table: str, dates_cols: L
     return transformed_path  
 
 
-def load_to_sqlite(db_path: str, transformed_path: str, dst_table: str) -> None:
+def load_parquet_2_db(db_path: str, transformed_path: str, dst_table: str) -> None:
     """
     Loads transformed dataset into DST_TABLE in SQLite.
     Uses pandas to_sql for convenience.

@@ -52,7 +52,7 @@ def sqlite_etl_3_tasks():
 
     @task
     def load_to_sqlite(transformed_path: str) -> None:
-        load_to_sqlite(DB_PATH, transformed_path, DST_TABLE_LEADS)
+        load_parquet_2_db(DB_PATH, transformed_path, DST_TABLE_LEADS)
 
     extracted = extract_to_file()
     transformed = transform_python(extracted)
