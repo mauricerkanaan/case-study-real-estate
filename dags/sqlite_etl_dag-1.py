@@ -7,7 +7,8 @@ from datetime import datetime
 import pandas as pd
 from airflow.decorators import dag, task
 
-from case_study_real_estate_dags.common.common_functions import * 
+from case_study_real_estate_dags.common.common_transformation import * 
+from case_study_real_estate_dags.common.transformation_leads import * 
 
 import logging
 log = logging.getLogger("airflow.task")
@@ -20,7 +21,7 @@ DST_TABLE = "dwh_LEADS"
 
 
 @dag(
-    dag_id="sqlite_etl_dag",
+    dag_id="sqlite_etl_dag_1",
     start_date=datetime(2025, 1, 1),
     schedule=None,
     catchup=False,
@@ -73,32 +74,8 @@ def sqlite_etl_3_tasks():
 
         df = pd.read_parquet(extract_path)
 
-        # Remove exact duplicated rows 
-        log.info("-------> Remove exact duplicate rows")
-        df = remove_exact_duplicate_rows(df)
-
-        # Normalize all string columns 
-        str_cols = df.select_dtypes(include=["object", "string"]).columns
+        df = transform_leads(df)
         
-        log.info("-------> Normalize all string columns")
-        df[str_cols] = df[str_cols].apply(normalize_str)
-        
-        log.info("-------> Decode arabic")
-        df[str_cols] = df[str_cols].apply(decode_str)
-        
-
-        # Normalize dates
-        log.info("-------> Normalize dates")
-        dates_cols = ["date_of_last_request", "created_at", "updated_at", "date_of_last_contact"]
-        df[dates_cols] = df[dates_cols].apply(fix_dates)
-
-        # Fix booleans 
-        log.info("-------> Normalize booleans")
-        bool_cols = ["buyer", "seller", "commercial", "merged", "do_not_call"]
-        df[bool_cols] = df[bool_cols].apply(fix_bools)
-
-        # -----------------------------------------------------
-
         df.to_parquet(transformed_path, index=False)
         return transformed_path
 
