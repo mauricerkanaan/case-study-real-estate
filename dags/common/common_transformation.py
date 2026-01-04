@@ -6,6 +6,31 @@ from typing import Any
 import logging
 log = logging.getLogger("airflow.task")
 
+def fill_na_dtype_safe(df: pd.DataFrame, fill_str: str = "", fill_bool=None, fill_num=None, fill_dt=None) -> pd.DataFrame:
+    out = df.copy()
+
+    # strings/objects -> ""
+    str_cols = out.select_dtypes(include=["object", "string"]).columns
+    if len(str_cols):
+        out[str_cols] = out[str_cols].fillna(fill_str)
+
+    # pandas nullable booleans / numpy bool
+    bool_cols = out.select_dtypes(include=["boolean", "bool"]).columns
+    if len(bool_cols) and fill_bool is not None:
+        out[bool_cols] = out[bool_cols].fillna(fill_bool).astype("boolean")
+
+    # numbers
+    num_cols = out.select_dtypes(include=["number"]).columns
+    if len(num_cols) and fill_num is not None:
+        out[num_cols] = out[num_cols].fillna(fill_num)
+
+    # datetimes
+    dt_cols = out.select_dtypes(include=["datetime64[ns]", "datetimetz"]).columns
+    if len(dt_cols) and fill_dt is not None:
+        out[dt_cols] = out[dt_cols].fillna(fill_dt)
+
+    return out
+
 def remove_exact_duplicate_rows(df: pd.DataFrame) -> pd.DataFrame:
     """Drop rows that are fully identical across all columns (keep first) and log deletions."""
     before = len(df)
@@ -292,7 +317,8 @@ def decode_str(values: pd.Series) -> pd.Series:
 
     return values.map(fix_value_scalar)
 
-
+# def correct_free_text(): 
+#     pass 
 
 
 

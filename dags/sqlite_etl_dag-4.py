@@ -55,8 +55,8 @@ def sqlite_etl_6_tasks():
         return transformed_path
 
     @task
-    def load_leads(transformed_path: str) -> str:
-        transformed_path = load_parquet_2_db(DB_PATH, transformed_path, DST_TABLE_LEADS)
+    def load_leads(transformed_path: str, dst_table: str) -> str:
+        transformed_path = load_parquet_2_db(DB_PATH, transformed_path, dst_table, DST_TABLE_LEADS)
         return transformed_path
 
     @task
@@ -82,29 +82,25 @@ def sqlite_etl_6_tasks():
         return transformed_path
 
     @task
-    def load_sales(transformed_path: str) -> str:
-        transformed_path = load_parquet_2_db(DB_PATH, transformed_path, DST_TABLE_SALES)
+    def load_sales(transformed_path: str, dst_table: str) -> str:
+        transformed_path = load_parquet_2_db(DB_PATH, transformed_path, dst_table, DST_TABLE_SALES)
         return transformed_path
 
-    @task
-    def join(load_leads_path: str, load_sales_path: str) -> None:
-        print("----------------> DONE")
-        print(load_leads_path)
-        print(load_sales_path)
 
     src_leads_parquet_path = extract_src_leads()
     dst_leads_parquet_path = extract_dst_leads()
     transformed_leads_parquet_path = transform_leads(src_leads_parquet_path)
     transformed_uncommon_leads_parquet_path = exclude_common_leads(transformed_leads_parquet_path, dst_leads_parquet_path)
-    load_leads_parquet_path = load_leads(transformed_uncommon_leads_parquet_path)
+    load_leads_parquet_path = load_leads(transformed_uncommon_leads_parquet_path, dst_leads_parquet_path)
 
     src_sales_parquet_path = extract_src_sales()
     dst_sales_parquet_path = extract_dst_sales()
     transformed_sales_parquet_path = transform_sales(src_sales_parquet_path)
     transformed_uncommon_sales_parquet_path = exclude_common_sales(transformed_sales_parquet_path, dst_sales_parquet_path)
-    load_sales_parquet_path = load_sales(transformed_uncommon_sales_parquet_path)
-
-    # join(load_leads_path, load_sales_path)
+    load_sales_parquet_path = load_sales(transformed_uncommon_sales_parquet_path, dst_sales_parquet_path)
 
 
 sqlite_etl_6_tasks()
+
+
+

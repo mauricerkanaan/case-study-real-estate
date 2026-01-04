@@ -1,0 +1,6 @@
+id,src_id,first_name,last_name,salary,effective_start_date,effective_end_date,is_current,version_id
+1,10.0,Mohamad,Kanaan,3.4,01/04/2026 00:37:29,,True,1.0
+2,20.0,Maurice,Kanaan,8.7,01/04/2026 00:37:29,,True,1.0
+3,30.0,Amani,Melhem,1.6,01/04/2026 00:37:29,01/04/2026 00:37:44,False,1.0
+4,30.0,Amani,Melhemm,1.6,01/04/2026 00:37:44,01/04/2026 00:39:50,False,2.0
+5,30.0,Amani,Melhem,1.6,01/04/2026 00:39:50,,True,3.0

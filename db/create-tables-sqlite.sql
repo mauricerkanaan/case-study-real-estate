@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS "data_source_SALES" (
 
 CREATE TABLE IF NOT EXISTS "dwh_LEADS" (
   "id" INTEGER NOT NULL PRIMARY KEY,
-  "src_id" INTEGER,
+  "src_id" INTEGER NOT NULL,
   "date_of_last_request" TEXT NOT NULL,
   "buyer" INTEGER NOT NULL,
   "seller" INTEGER NOT NULL,
@@ -65,13 +65,13 @@ CREATE TABLE IF NOT EXISTS "dwh_LEADS" (
   "merged" REAL,
   "area_id" REAL,
   "compound_id" REAL,
-  "developer_id" TEXT,
+  "developer_id" REAL,
   "meeting_flag" REAL,
   "do_not_call" INTEGER NOT NULL,
   "lead_type_id" INTEGER NOT NULL,
   "customer_id" INTEGER NOT NULL,
   "method_of_contact" TEXT NOT NULL,
-  "lead_source" TEXT NOT NULL,
+  "lead_source" TEXT,
   "campaign" TEXT,
   "lead_type" TEXT NOT NULL,
   "effective_start_date" TEXT NOT NULL,
@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS "dwh_LEADS" (
 
 CREATE TABLE IF NOT EXISTS "dwh_SALES" (
   "id" INTEGER NOT NULL PRIMARY KEY,
-  "src_id" INTEGER,
+  "src_id" INTEGER  NOT NULL,
   "lead_id" INTEGER NOT NULL,
   "unit_value" REAL,
   "unit_location" TEXT,
