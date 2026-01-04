@@ -37,7 +37,7 @@ def sqlite_etl_6_tasks():
     
     @task
     def extract_dst_leads() -> str:
-        extract_path = extract_db_2_parquet(DB_DIR, DB_PATH, DST_TABLE_LEADS)
+        extract_path = extract_db_2_parquet(DB_DIR, DB_PATH, DST_TABLE_LEADS, True)
         return extract_path
 
     @task
@@ -66,7 +66,7 @@ def sqlite_etl_6_tasks():
 
     @task
     def extract_dst_sales() -> str:
-        extract_path = extract_db_2_parquet(DB_DIR, DB_PATH, DST_TABLE_SALES)
+        extract_path = extract_db_2_parquet(DB_DIR, DB_PATH, DST_TABLE_SALES, True)
         return extract_path
     
     @task

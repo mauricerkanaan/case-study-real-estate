@@ -10,7 +10,7 @@ from case_study_real_estate_dags.common.common_scd_2 import *
 import logging
 log = logging.getLogger("airflow.task")
 
-def extract_db_2_parquet(db_dir: str, db_path: str, src_table: str) -> str: 
+def extract_db_2_parquet(db_dir: str, db_path: str, src_table: str, only_current: bool=False) -> str: 
     """
     Reads rows from src_table and writes to a parquet file in DB_DIR.
     Returns the extracted file path.
@@ -27,7 +27,10 @@ def extract_db_2_parquet(db_dir: str, db_path: str, src_table: str) -> str:
         os.remove(extract_path)
 
     with sqlite3.connect(db_path) as conn:
-        df = pd.read_sql_query(f"SELECT * FROM {src_table};", conn)
+        if only_current: 
+            df = pd.read_sql_query(f"SELECT * FROM {src_table} WHERE is_current=True;", conn)
+        else: 
+            df = pd.read_sql_query(f"SELECT * FROM {src_table};", conn)
 
     log.info(f"[DB2Parquet] df.shape {df.shape}")
 
@@ -57,9 +60,11 @@ def exclude_common_data(src_path: str, dst_path: str) -> str:
             .drop(columns="_merge")
     )
 
+    not_in_dst = not_in_dst[df_src.columns]
     not_in_dst.to_parquet(src_path, index=False)
     
     log.info(f"[ExcludeCommon] not_in_dst.shape {not_in_dst.shape}")
+    log.info(f"[ExcludeCommon] not_in_dst.columns {not_in_dst.columns}")
     
     return src_path
 
@@ -120,6 +125,13 @@ def transform_data(db_dir: str, extract_path: str, src_table: str, dates_cols: L
 
     return transformed_path  
 
+def get_max_id_plus_one(conn: sqlite3.Connection, table: str, column: str="id") -> int:     
+    sql = f"SELECT COALESCE(MAX({column}), 0) + 1 as ID FROM {table};"
+    cur = conn.cursor()
+    cur.execute(sql)
+    row = cur.fetchone()
+    return int(row[0]) if row and row[0] is not None else 1
+
 def load_parquet_2_db(db_path: str, transformed_path: str, dst_path: str, dst_table: str) -> str:
     """
     Loads transformed dataset into DST_TABLE in SQLite.
@@ -131,28 +143,49 @@ def load_parquet_2_db(db_path: str, transformed_path: str, dst_path: str, dst_ta
     df_transformed = pd.read_parquet(transformed_path)
     df_dst = pd.read_parquet(dst_path)
 
-    """
-    - for every row in df_transformer 
-        if id exists in df_dst -> update based on the last version and insert in df_dst
-        if not insert into df_dst
-        change df_dst and send it to the db 
-    """
-    df_transformed["src_id"] = df_transformed["id"]
-    df_transformed["effective_start_date"] = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
-    df_transformed["effective_end_date"] = pd.NA
-    df_transformed["is_current"] = False
-    df_transformed["version_id"] = -1
-
     log.info(f"[LoadData] df_transformed.shape {df_transformed.shape}")
 
     with sqlite3.connect(db_path) as conn:
-        # conn.execute(f"DELETE FROM {dst_table}")
-        # Append with respect to the existing table schema 
-        df_transformed.to_sql(dst_table, conn, if_exists="append", index=False)
+        cid = get_max_id_plus_one(conn, dst_table)
 
-        # Optional: add indexes (example)
-        # if "id" in df.columns:
-        #     conn.execute(f"CREATE INDEX IF NOT EXISTS idx_{DST_TABLE}_id ON {DST_TABLE}(id);")
+        df_transformed = upsert_2(df_transformed, df_dst, cid)        
+        log.info(f"[LoadData] After UPSERT df_transformed.shape {df_transformed.shape}")
+
+        df_transformed = df_transformed.astype(object).where(pd.notna(df_transformed), None)
+
+        cols = list(df_transformed.columns)
+        if "id" not in cols:
+            raise ValueError("df_transformed must contain an 'id' column")
+
+        insert_cols = ", ".join(cols)
+        placeholders = ", ".join(["?"] * len(cols))
+
+        update_cols = [c for c in cols if c != "id"]
+        set_clause = ", ".join([f"{c}=excluded.{c}" for c in update_cols])
+
+        sql = f"""
+        INSERT INTO {dst_table} ({insert_cols})
+        VALUES ({placeholders})
+        ON CONFLICT(id) DO UPDATE SET
+        {set_clause}
+        """
+
+        rows = list(df_transformed.itertuples(index=False, name=None))
+
+    
+        conn.executemany(sql, rows)
+
+
+
+
+    # with sqlite3.connect(db_path) as conn:
+    #     # conn.execute(f"DELETE FROM {dst_table}")
+    #     # Append with respect to the existing table schema 
+    #     df_transformed.to_sql(dst_table, conn, if_exists="append", index=False)
+
+    #     # Optional: add indexes (example)
+    #     # if "id" in df.columns:
+    #     #     conn.execute(f"CREATE INDEX IF NOT EXISTS idx_{DST_TABLE}_id ON {DST_TABLE}(id);")
 
     return transformed_path
 
