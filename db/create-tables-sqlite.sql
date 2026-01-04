@@ -103,3 +103,90 @@ CREATE TABLE IF NOT EXISTS "dwh_SALES" (
   "version_id" INTEGER NOT NULL
 );
 
+---- Create stars ----
+
+DROP VIEW IF EXISTS star_LEADS;
+CREATE VIEW star_LEADS AS
+	SELECT 
+		src_id as id,
+		date_of_last_request,
+		buyer,seller,
+		best_time_to_call,
+		budget,
+		created_at,
+		updated_at,
+		user_id,
+		location,
+		date_of_last_contact,
+		status_name,
+		commercial,
+		merged,
+		area_id,
+		compound_id,
+		developer_id,
+		meeting_flag,
+		do_not_call,
+		lead_type_id,
+		customer_id,
+		method_of_contact,
+		lead_source,
+		campaign,
+		lead_type
+	FROM 
+		dwh_LEADS
+	WHERE 
+		is_current=True;
+		
+DROP VIEW IF EXISTS star_SALES;
+CREATE VIEW star_SALES AS	
+	SELECT 
+	  src_id as id,
+	  lead_id,
+	  unit_value,
+	  unit_location,
+	  expected_value,
+	  actual_value,
+	  date_of_reservation,
+	  reservation_update_date,
+	  date_of_contraction,
+	  property_type_id,
+	  area_id,
+	  compound_id,
+	  sale_category,
+	  years_of_payment,
+	  property_type
+	FROM 
+		dwh_SALES
+	WHERE 
+		is_current=True;
+
+
+DROP VIEW IF EXISTS star_lead_to_sale_summary;
+CREATE VIEW star_lead_to_sale_summary AS
+SELECT 
+	l.location as "Location",
+	l.status_name as "Status Name" , 
+	l.method_of_contact as "Method of contact", 
+	l.campaign as "Campaign",
+	CAST(
+		julianday(
+		  CASE
+			WHEN l.updated_at IS NULL THEN (substr(l.created_at,7,4)||'-'||substr(l.created_at,1,2)||'-'||substr(l.created_at,4,2)||' '||substr(l.created_at,12))
+			WHEN (substr(l.updated_at,7,4)||'-'||substr(l.updated_at,1,2)||'-'||substr(l.updated_at,4,2)||' '||substr(l.updated_at,12))
+			   < (substr(l.created_at,7,4)||'-'||substr(l.created_at,1,2)||'-'||substr(l.created_at,4,2)||' '||substr(l.created_at,12))
+			THEN (substr(l.created_at,7,4)||'-'||substr(l.created_at,1,2)||'-'||substr(l.created_at,4,2)||' '||substr(l.created_at,12))
+			ELSE (substr(l.updated_at,7,4)||'-'||substr(l.updated_at,1,2)||'-'||substr(l.updated_at,4,2)||' '||substr(l.updated_at,12))
+		  END
+		)
+		- julianday(substr(l.created_at,7,4)||'-'||substr(l.created_at,1,2)||'-'||substr(l.created_at,4,2)||' '||substr(l.created_at,12))
+	AS INTEGER) as "Time from created", 
+	COUNT(s.lead_id) as "Sales count",
+	AVG(s.unit_value) as "Avg Unit Value",
+	AVG(s.actual_value) as "Avg Actual Value",
+	AVG(s.expected_value) as "Avg Expected Value", 
+	AVG(s.actual_value - expected_value) as "Avg Variance Value", 
+	json_group_array(DISTINCT property_type) as "Property Types"
+FROM 
+	star_LEADS L
+	LEFT JOIN star_SALES s ON l.id = s.lead_id
+GROUP BY l.id;
