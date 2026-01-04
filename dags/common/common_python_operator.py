@@ -115,9 +115,9 @@ def transform_data(db_dir: str, extract_path: str, src_table: str, dates_cols: L
         df[bool_cols] = df[bool_cols].apply(fix_bools) 
 
     # Correct free-text in best_time_to_call using cahce llm 
-    # if "best_time_to_call" in df.columns: 
-    #     log.info(f"[LLM] Correct free text in 'best_time_to_call'")
-    #     correct_free_text        
+    if "best_time_to_call" in df.columns: 
+        log.info(f"[LLM] Correct free text in 'best_time_to_call'")
+        df["best_time_to_call"] = correct_free_text(df["best_time_to_call"])
         
 
     log.info(f"[TransformData] df.shape {df.shape}")
