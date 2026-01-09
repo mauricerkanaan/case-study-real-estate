@@ -164,6 +164,8 @@ CREATE VIEW star_SALES AS
 DROP VIEW IF EXISTS star_lead_to_sale_summary;
 CREATE VIEW star_lead_to_sale_summary AS
 SELECT 
+	l.id as "Lead ID",
+	json_group_array(DISTINCT s.id) as "Sales Ids",
 	l.location as "Location",
 	l.status_name as "Status Name" , 
 	l.method_of_contact as "Method of contact", 
